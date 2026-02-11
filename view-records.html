@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Sign-In Records</title>
+    <script src="node_modules/jspdf/dist/jspdf.umd.min.js"></script>
+    <script src="node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .primary-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #0056b3;
+        }
+        .secondary-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .secondary-button:hover {
+            background-color: #545b62;
+        }
+        .records-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .records-table th, .records-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .records-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .records-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .no-records {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .filters-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .filter-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .export-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .export-button:hover {
+            background-color: #218838;
+        }
+        .search-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .search-button:hover {
+            background-color: #0056b3;
+        }
+        .clear-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .clear-button:hover {
+            background-color: #c82333;
+        }
+        .status-in {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .status-out {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .status-out.forced {
+            color: #ff6b6b;
+            font-style: italic;
+            position: relative;
+        }
+        .status-out.forced::after {
+            content: attr(data-reason);
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-left: 5px;
+            color: #666;
+        }
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+        }
+        /* Comment Icon Styles */
+        .comment-icon {
+            cursor: pointer;
+            color: #007bff;
+            margin-left: 8px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close-modal:hover {
+            color: #555;
+        }
+
+        .comment-text {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .comment-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        /* Employee History Modal Styles */
+        .employee-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .employee-modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 8px;
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .employee-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .employee-modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .date-filter-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .date-filter-container input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .date-filter-container button {
+            padding: 8px 16px;
+        }
+
+        .records-table tr {
+            cursor: pointer;
+        }
+
+        .records-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .date-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .record-details {
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .record-details span {
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .record-details .divider {
+            color: #666;
+            margin: 0 5px;
+        }
+
+        .record-details .location {
+            color: #28a745;
+        }
+
+        .record-details .notes {
+            font-style: italic;
+            color: #6c757d;
+        }
+
+        .employee-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .employee-info h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 20px;
+        }
+
+        .employee-info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 16px;
+        }
+
+        /* Error message styles */
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .error-message .close-error {
+            cursor: pointer;
+            font-size: 20px;
+            color: #721c24;
+        }
+
+        .debug-info {
+            background-color: #e2e3e5;
+            color: #383d41;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #d6d8db;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        #debugToggle {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        #debugToggle:hover {
+            background-color: #5a6268;
+        }
+
+        /* Toggle Buttons Styles */
+        .view-toggle-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .toggle-buttons {
+            display: inline-flex;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+        }
+        .toggle-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: transparent;
+            color: #666;
+        }
+        .toggle-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .toggle-button:hover:not(.active) {
+            background-color: #e0e0e0;
+        }
+        .hours-status {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-weight: bold;
+        }
+
+        .hours-value {
+            font-weight: bold;
+        }
+
+        .hours-complete {
+            color: #28a745;
+        }
+
+        .hours-incomplete {
+            color: #dc3545;
+        }
+
+        .hours-progress {
+            color: #007bff;
+        }
+
+        .break-info {
+            font-size: 0.85em;
+            color: #666;
+            font-style: italic;
+        }
+
+        .hours-total {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .week-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #007bff;
+            margin: 30px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .total-day {
+            color: #495057;
+            border-top: 1px solid #dee2e6;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+
+        .weekly-total {
+            font-size: 1em;
+            font-weight: bold;
+            color: #28a745;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+        }
+
+        .record-details {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            line-height: 1.5;
+        }
+
+        .record-details:last-child {
+            border-bottom: none;
+        }
+
+        /* Add these styles to the existing style section */
+        .sync-button {
+            background-color: #17a2b8;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-button:hover {
+            background-color: #138496;
+        }
+
+        .sync-button i {
+            font-size: 16px;
+        }
+
+        .sync-button.syncing i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sync-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .sync-status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .sync-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .sync-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .sync-status.progress {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+
+        .last-sync-time {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .sync-progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background-color: #17a2b8;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>View Sign-In Records</h1>
+        <div class="view-toggle-container">
+            <div class="toggle-buttons">
+                <button id="staffToggle" class="toggle-button active">Staff</button>
+                <button id="studentsToggle" class="toggle-button">Students</button>
+                <button id="visitorsToggle" class="toggle-button">Visitors</button>
+            </div>
+        </div>
+        
+        <div id="errorContainer"></div>
+        <button id="debugToggle" onclick="toggleDebugInfo()">Show Debug Info</button>
+        <div id="debugInfo" class="debug-info"></div>
+        
+        <div class="filters-section">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="nameFilter">Name:</label>
+                    <input type="text" id="nameFilter" placeholder="Search by name">
+                </div>
+                <div class="filter-group">
+                    <label for="idFilter">ID Number:</label>
+                    <input type="text" id="idFilter" placeholder="Search by ID">
+                </div>
+                <div class="filter-group">
+                    <label for="departmentFilter" id="departmentLabel">Department:</label>
+                    <select id="departmentFilter">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="locationFilter">Location:</label>
+                    <input type="text" id="locationFilter" placeholder="Search by location">
+                </div>
+                <div class="filter-group">
+                    <label for="startDateFilter">Start Date:</label>
+                    <input type="date" id="startDateFilter">
+                </div>
+                <div class="filter-group">
+                    <label for="endDateFilter">End Date:</label>
+                    <input type="date" id="endDateFilter">
+                </div>
+                <div class="filter-group">
+                    <label for="specificDateFilter">Specific Date:</label>
+                    <input type="date" id="specificDateFilter">
+                </div>
+            </div>
+            <div class="button-container">
+                <button class="search-button" onclick="applyFilters()">Search</button>
+                <button class="clear-button" onclick="clearFilters()">Clear Filters</button>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button class="secondary-button" onclick="window.location.href='index.html'">Back to Menu</button>
+            <button class="primary-button" onclick="refreshRecords()">Refresh Records</button>
+            <button class="sync-button" onclick="manualSync()">
+                <i class="fas fa-sync-alt"></i> Sync Data
+            </button>
+            <button class="export-button" onclick="exportToPDF()">Export to PDF</button>
+            <button class="export-button" onclick="exportToCSV()">Export to CSV</button>
+        </div>
+
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Name</th>
+                    <th>ID Number</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+            </tbody>
+        </table>
+
+        <!-- Add Modal for Comments -->
+        <div id="commentModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <div class="comment-header">Comment</div>
+                <div id="commentText" class="comment-text"></div>
+            </div>
+        </div>
+
+        <!-- Employee History Modal -->
+        <div id="employeeModal" class="employee-modal">
+            <div class="employee-modal-content">
+                <div id="employeeInfo" class="employee-info">
+                    <h2>Employee Details</h2>
+                    <p id="employeeName">Name: </p>
+                    <p id="employeeIDDisplay">ID Number: </p>
+                    <p id="employeeDepartment">Department: </p>
+                </div>
+                <div class="date-filter-container">
+                    <div>
+                        <label for="startDate">Start Date:</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div>
+                        <label for="endDate">End Date:</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button class="search-button" onclick="filterEmployeeRecords()">Search</button>
+                    <button class="clear-button" onclick="clearDateFilters()">Clear</button>
+                    <button class="export-button" onclick="exportEmployeeHistoryToPDF()">Export PDF</button>
+                    <button class="export-button" onclick="exportEmployeeHistoryToCSV()">Export CSV</button>
+                    <button class="secondary-button" onclick="closeEmployeeModal()">Close</button>
+                </div>
+                <div id="employeeRecordsContainer"></div>
+            </div>
+        </div>
+
+        <!-- Add Sync Status Modal -->
+        <div id="syncModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeSyncModal()">&times;</span>
+                <div class="sync-header">Data Synchronization</div>
+                <div id="syncStatus" class="sync-status"></div>
+                <div id="lastSyncTime" class="last-sync-time"></div>
+                <div id="syncProgress" class="sync-progress-bar">
+                    <div id="syncProgressBar" class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { getSignInRecords, getEmployeeRecords, cacheManager } = window.electronAPI;
+        let currentRecords = [];
+        let currentEmployeeID = null;
+        let debugMode = false;
+        let currentView = 'staff';
+        let syncInProgress = false;
+        let lastSyncTime = localStorage.getItem('lastSyncTime') || null;
+
+        // Global variables
+        const staffToggle = document.getElementById('staffToggle');
+        const studentsToggle = document.getElementById('studentsToggle');
+        const visitorsToggle = document.getElementById('visitorsToggle');
+        const viewRecordsTable = document.querySelector('.records-table');
+
+        // Error handling functions
+        function showError(message, error = null) {
+            const errorContainer = document.getElementById('errorContainer');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            
+            let errorMessage = message;
+            if (error) {
+                console.error('Error details:', error);
+                errorMessage += ' (See console for details)';
+                updateDebugInfo('Error Details', error);
+            }
+
+            errorDiv.innerHTML = `
+                ${errorMessage}
+                <span class="close-error" onclick="this.parentElement.remove()">&times;</span>
+            `;
+            errorContainer.appendChild(errorDiv);
+        }
+
+        // Debug functions
+        function updateDebugInfo(label, data) {
+            const debugInfo = document.getElementById('debugInfo');
+            const timestamp = new Date().toISOString();
+            const debugData = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            
+            const currentContent = debugInfo.textContent;
+            debugInfo.textContent = `[${timestamp}] ${label}:\n${debugData}\n\n${currentContent}`;
+        }
+
+        function toggleDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugToggle = document.getElementById('debugToggle');
+            debugMode = !debugMode;
+            debugInfo.style.display = debugMode ? 'block' : 'none';
+            debugToggle.textContent = debugMode ? 'Hide Debug Info' : 'Show Debug Info';
+        }
+
+        async function applyFilters() {
+            try {
+                const nameFilter = document.getElementById('nameFilter').value.trim();
+                const idFilter = document.getElementById('idFilter').value.trim();
+                const departmentFilter = document.getElementById('departmentFilter').value.trim();
+                const locationFilter = document.getElementById('locationFilter').value.trim();
+                const startDateFilter = document.getElementById('startDateFilter').value;
+                const endDateFilter = document.getElementById('endDateFilter').value;
+                const specificDateFilter = document.getElementById('specificDateFilter').value;
+
+                updateDebugInfo('Applied Filters', { 
+                    name: nameFilter, 
+                    id: idFilter, 
+                    department: departmentFilter,
+                    location: locationFilter,
+                    startDate: startDateFilter,
+                    endDate: endDateFilter,
+                    specificDate: specificDateFilter
+                });
+
+                const filters = {};
+                if (nameFilter) filters.employeeName = nameFilter;
+                if (idFilter) filters.employeeID = idFilter;
+                if (departmentFilter) filters.department = departmentFilter;
+                if (locationFilter) filters.location = locationFilter;
+
+                // Handle date filtering
+                if (specificDateFilter) {
+                    // Convert specific date to MMDDYYYY format for ID matching
+                    const specificDate = new Date(specificDateFilter);
+                    const formattedDate = formatDateForId(specificDate);
+                    filters.datePattern = formattedDate;
+                } else if (startDateFilter || endDateFilter) {
+                    // Convert date range to array of formatted dates
+                    const dateRange = generateDateRange(startDateFilter, endDateFilter);
+                    filters.datePatterns = dateRange;
+                }
+
+                await refreshRecords(filters);
+            } catch (error) {
+                showError('Error applying filters', error);
+            }
+        }
+
+        function clearFilters() {
+            try {
+                document.getElementById('nameFilter').value = '';
+                document.getElementById('idFilter').value = '';
+                document.getElementById('departmentFilter').value = '';
+                document.getElementById('locationFilter').value = '';
+                document.getElementById('startDateFilter').value = '';
+                document.getElementById('endDateFilter').value = '';
+                document.getElementById('specificDateFilter').value = '';
+                updateDebugInfo('Filters Cleared', 'All filters reset to default values');
+                refreshRecords();
+            } catch (error) {
+                showError('Error clearing filters', error);
+            }
+        }
+
+        // Helper function to format date as MMDDYYYY
+        function formatDateForId(date) {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}${day}${year}`;
+        }
+
+        // Helper function to generate array of formatted dates between start and end dates
+        function generateDateRange(startDate, endDate) {
+            const dates = [];
+            const start = new Date(startDate || new Date());
+            const end = new Date(endDate || start);
+            
+            const current = new Date(start);
+            while (current <= end) {
+                dates.push(formatDateForId(current));
+                current.setDate(current.getDate() + 1);
+            }
+            return dates;
+        }
+
+        // Add event listener to handle date filter interaction
+        document.getElementById('specificDateFilter').addEventListener('change', function() {
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            
+            // If specific date is selected, clear date range
+            if (this.value) {
+                startDateFilter.value = '';
+                endDateFilter.value = '';
+                startDateFilter.disabled = true;
+                endDateFilter.disabled = true;
+            } else {
+                startDateFilter.disabled = false;
+                endDateFilter.disabled = false;
+            }
+        });
+
+        // Add event listeners for date range filters
+        document.getElementById('startDateFilter').addEventListener('change', function() {
+            const specificDateFilter = document.getElementById('specificDateFilter');
+            if (this.value) {
+                specificDateFilter.value = '';
+                specificDateFilter.disabled = true;
+            } else if (!document.getElementById('endDateFilter').value) {
+                specificDateFilter.disabled = false;
+            }
+        });
+
+        document.getElementById('endDateFilter').addEventListener('change', function() {
+            const specificDateFilter = document.getElementById('specificDateFilter');
+            if (this.value) {
+                specificDateFilter.value = '';
+                specificDateFilter.disabled = true;
+            } else if (!document.getElementById('startDateFilter').value) {
+                specificDateFilter.disabled = false;
+            }
+        });
+
+        async function refreshRecords(filters = {}) {
+            try {
+                const nameFilter = document.getElementById('nameFilter')?.value.toLowerCase().trim() || '';
+                const idFilter = document.getElementById('idFilter')?.value.toLowerCase().trim() || '';
+                const departmentFilter = document.getElementById('departmentFilter')?.value.toLowerCase().trim() || '';
+                const locationFilter = document.getElementById('locationFilter')?.value.toLowerCase().trim() || '';
+                const startDateFilter = document.getElementById('startDateFilter')?.value || '';
+                const endDateFilter = document.getElementById('endDateFilter')?.value || '';
+                const specificDateFilter = document.getElementById('specificDateFilter')?.value || '';
+
+                // Get the collection name based on current view
+                const collectionName = currentView === 'staff' ? 'Employee_logs' : 
+                                     currentView === 'students' ? 'signin_logs' : 'visitors';
+
+                // Get metadata to know which segments to load
+                const metadataStr = localStorage.getItem(`${collectionName}_metadata`);
+                if (!metadataStr) {
+                    showError('No local data found. Please sync first.');
+                    return;
+                }
+
+                const metadata = JSON.parse(metadataStr);
+                let allRecords = [];
+
+                // Load all segments
+                for (const segment of metadata.segments) {
+                    const segmentData = localStorage.getItem(`${collectionName}_${segment}`);
+                    if (segmentData) {
+                        const records = JSON.parse(segmentData);
+                        allRecords = allRecords.concat(records);
+                    }
+                }
+
+                updateDebugInfo('Total records loaded', allRecords.length);
+
+                // Apply filters to all records
+                let filteredRecords = allRecords.filter(record => {
+                    const recordName = (record.employeeName || record.studentName || record.visitorName || record.name || '').toLowerCase();
+                    const recordId = (record.employeeID || record.employeeId || record.studentID || record.visitorId || record.id || '').toLowerCase();
+                    const recordDepartment = (record.department || record.course || record.purpose || '').toLowerCase();
+                    const recordLocation = (record.location || '').toLowerCase();
+
+                    // Apply text filters
+                    if (nameFilter && !recordName.includes(nameFilter)) return false;
+                    if (idFilter && !recordId.includes(idFilter)) return false;
+                    if (departmentFilter && !recordDepartment.includes(departmentFilter)) return false;
+                    if (locationFilter && !recordLocation.includes(locationFilter)) return false;
+
+                    // Apply date filters
+                    if (specificDateFilter || startDateFilter || endDateFilter) {
+                        const recordDate = record.signInTime?.toDate ? 
+                            record.signInTime.toDate() : 
+                            new Date(record.signInTime._seconds * 1000);
+
+                        if (specificDateFilter) {
+                            const specificDate = new Date(specificDateFilter);
+                            const nextDay = new Date(specificDate);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            return recordDate >= specificDate && recordDate < nextDay;
+                        } else {
+                            if (startDateFilter) {
+                                const startDate = new Date(startDateFilter);
+                                if (recordDate < startDate) return false;
+                            }
+                            if (endDateFilter) {
+                                const endDate = new Date(endDateFilter);
+                                endDate.setHours(23, 59, 59, 999);
+                                if (recordDate > endDate) return false;
+                            }
+                        }
+                    }
+
+                    return true;
+                });
+
+                // Sort records by date (newest first)
+                filteredRecords.sort((a, b) => {
+                    const dateA = a.signInTime?.toDate ? 
+                        a.signInTime.toDate() : 
+                        new Date(a.signInTime._seconds * 1000);
+                    const dateB = b.signInTime?.toDate ? 
+                        b.signInTime.toDate() : 
+                        new Date(b.signInTime._seconds * 1000);
+                    return dateB - dateA;
+                });
+
+                updateDebugInfo('Filtered records count', filteredRecords.length);
+
+                // Update the table with filtered results
+                const tbody = document.querySelector('.records-table tbody');
+                tbody.innerHTML = '';
+
+                if (filteredRecords.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="no-records">No records found</td></tr>';
+                    return;
+                }
+
+                // Display the first 50 records but keep all in memory
+                const displayRecords = filteredRecords.slice(0, 50);
+                displayRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    const timestamp = parseTimestamp(record.signInTime);
+                    let statusClass;
+                    switch(record.status) {
+                        case 'Signed In':
+                            statusClass = 'status-in';
+                            break;
+                        case 'Forced Sign-out':
+                            statusClass = 'status-out forced';
+                            break;
+                        default:
+                            statusClass = 'status-out';
+                    }
+                    
+                    let displayName, displayId, displayDepartment;
+                    
+                    switch(currentView) {
+                        case 'staff':
+                            displayName = record.employeeName;
+                            displayId = record.employeeID || record.employeeId;
+                            displayDepartment = record.department;
+                            
+                            if (displayId) {
+                                row.style.cursor = 'pointer';
+                                row.title = 'Double-click to view employee history';
+                                row.addEventListener('dblclick', () => {
+                                    showEmployeeHistory(displayId, displayName, displayDepartment);
+                                });
+                            }
+                            break;
+                            
+                        case 'students':
+                            displayName = record.studentName || record.name;
+                            displayId = record.studentID || record.id;
+                            displayDepartment = record.course || record.department;
+                            break;
+                            
+                        case 'visitors':
+                            displayName = record.visitorName || record.name;
+                            displayId = record.visitorId || record.id;
+                            displayDepartment = record.purpose;
+                            break;
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${timestamp.toLocaleString()}</td>
+                        <td>${displayName || ''}</td>
+                        <td>${displayId || ''}</td>
+                        <td>${displayDepartment || ''}</td>
+                        <td class="${statusClass}" ${record.forcedSignOutReason ? `data-reason="(${record.forcedSignOutReason})"` : ''}>${record.status || 'Signed In'}</td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+
+                // Add a message if there are more records
+                if (filteredRecords.length > 50) {
+                    const infoRow = document.createElement('tr');
+                    infoRow.innerHTML = `
+                        <td colspan="5" style="text-align: center; padding: 10px; background-color: #f8f9fa;">
+                            Showing first 50 of ${filteredRecords.length} records
+                        </td>
+                    `;
+                    tbody.appendChild(infoRow);
+                }
+
+            } catch (error) {
+                console.error('Error in refreshRecords:', error);
+                showError('Error loading records: ' + error.message);
+            }
+        }
+
+        function parseTimestamp(signInTime) {
+            try {
+                if (!signInTime) return new Date();
+                
+                if (typeof signInTime.toDate === 'function') {
+                    return signInTime.toDate();
+                }
+                if (signInTime._seconds) {
+                    return new Date(signInTime._seconds * 1000);
+                }
+                if (signInTime instanceof Date) {
+                    return signInTime;
+                }
+                return new Date(signInTime);
+            } catch (error) {
+                console.error('Error parsing timestamp:', error);
+                return new Date();
+            }
+        }
+
+        // Comment Modal Functions
+        const modal = document.getElementById('commentModal');
+        const commentText = document.getElementById('commentText');
+        const closeBtn = document.querySelector('.close-modal');
+
+        function showComment(recordId) {
+            const record = currentRecords.find(r => r.id === recordId);
+            if (record && record.comment) {
+                commentText.textContent = record.comment;
+                modal.style.display = 'block';
+            }
+        }
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+            if (event.target === employeeModal) {
+                closeEmployeeModal();
+            }
+        }
+
+        // Employee History Modal Functions
+        const employeeModal = document.getElementById('employeeModal');
+
+        async function showEmployeeHistory(employeeID, employeeName, department) {
+            console.log('showEmployeeHistory called with:', { employeeID, employeeName, department });
+            
+            if (!employeeID) {
+                showError('Employee ID is required');
+                return;
+            }
+            
+            currentEmployeeID = employeeID;
+            
+            // Update employee info display
+            document.getElementById('employeeName').textContent = `Name: ${employeeName || 'Not Specified'}`;
+            document.getElementById('employeeIDDisplay').textContent = `ID Number: ${employeeID || 'Not Specified'}`;
+            document.getElementById('employeeDepartment').textContent = `Department: ${department || 'Not Specified'}`;
+            
+            await loadEmployeeRecords();
+            employeeModal.style.display = 'block';
+        }
+
+        function closeEmployeeModal() {
+            employeeModal.style.display = 'none';
+            currentEmployeeID = null;
+            clearDateFilters();
+        }
+
+        // Add function to calculate working hours
+        function calculateWorkingHours(record) {
+            try {
+                let totalMinutes = 0;
+                let breakMinutes = 0;
+                
+                // Convert Firestore timestamps to Date objects
+                const signInTime = record.signInTime?.toDate ? record.signInTime.toDate() : new Date(record.signInTime._seconds * 1000);
+                const signOutTime = record.signOutTime?.toDate ? record.signOutTime.toDate() : record.signOutTime ? new Date(record.signOutTime._seconds * 1000) : null;
+                const tempOutTime = record.temporarySignOutTime?.toDate ? record.temporarySignOutTime.toDate() : record.temporarySignOutTime ? new Date(record.temporarySignOutTime._seconds * 1000) : null;
+                const secondSignInTime = record.secondSignInTime?.toDate ? record.secondSignInTime.toDate() : record.secondSignInTime ? new Date(record.secondSignInTime._seconds * 1000) : null;
+
+                // Calculate main working period
+                if (signInTime && signOutTime) {
+                    totalMinutes = Math.floor((signOutTime - signInTime) / (1000 * 60));
+                }
+
+                // Calculate temporary break period
+                if (tempOutTime && secondSignInTime) {
+                    breakMinutes = Math.floor((secondSignInTime - tempOutTime) / (1000 * 60));
+                    // If break is less than or equal to 1 hour, count it as working time
+                    if (breakMinutes <= 60) {
+                        totalMinutes += breakMinutes;
+                    } else {
+                        totalMinutes += 60; // Count only 1 hour of the break
+                    }
+                }
+
+                // Convert total minutes to hours and minutes
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                return {
+                    hours,
+                    minutes,
+                    totalMinutes,
+                    breakMinutes,
+                    isComplete: totalMinutes >= 480 // 8 hours = 480 minutes
+                };
+            } catch (error) {
+                console.error('Error calculating working hours:', error);
+                return null;
+            }
+        }
+
+        // Modify the loadEmployeeRecords function to properly format the records from local storage to match Firestore structure
+        async function loadEmployeeRecords() {
+            console.log('loadEmployeeRecords called with currentEmployeeID:', currentEmployeeID);
+            
+            if (!currentEmployeeID) {
+                showError('No employee ID provided');
+                return;
+            }
+
+            try {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                updateDebugInfo('Loading Employee Records', {
+                    employeeID: currentEmployeeID,
+                    startDate,
+                    endDate
+                });
+
+                // Get records from local storage
+                const collectionName = 'Employee_logs';
+                const metadata = localStorage.getItem(`${collectionName}_metadata`);
+                
+                if (!metadata) {
+                    showError('No local data found. Please sync first.');
+                    return;
+                }
+
+                const metadataObj = JSON.parse(metadata);
+                let allRecords = [];
+
+                // Combine records from all segments
+                for (const segment of metadataObj.segments) {
+                    const segmentData = localStorage.getItem(`${collectionName}_${segment}`);
+                    if (segmentData) {
+                        const records = JSON.parse(segmentData);
+                        console.log('Processing segment:', segment, 'Records:', records.length);
+                        
+                        // Filter records for this employee
+                        const employeeRecords = records.filter(record => {
+                            // Check all possible employee ID field names
+                            const recordId = record.employeeId || record.employeeID || record.employeeid || record['ID Number'];
+                            console.log('Record ID check:', { recordId, currentEmployeeID, match: recordId === currentEmployeeID });
+                            return recordId === currentEmployeeID;
+                        }).map(record => {
+                            // Normalize the record structure
+                            const normalizedRecord = {
+                                ...record,
+                                employeeId: record.employeeId || record.employeeID || record.employeeid || record['ID Number'],
+                                employeeName: record.employeeName || record.name || record.Name,
+                                department: record.department || record.Department
+                            };
+                            console.log('Normalized record:', normalizedRecord);
+                            return normalizedRecord;
+                        });
+                        
+                        console.log('Found matching records:', employeeRecords.length);
+                        allRecords = allRecords.concat(employeeRecords);
+                    }
+                }
+
+                // Log the final records count
+                console.log('Total records found:', allRecords.length);
+
+                // Filter by date if specified
+                if (startDate || endDate) {
+                    allRecords = allRecords.filter(record => {
+                        const recordDate = record.signInTime.toDate ? 
+                            record.signInTime.toDate() : 
+                            new Date(record.signInTime._seconds * 1000);
+                        
+                        if (startDate && endDate) {
+                            const start = new Date(startDate);
+                            start.setHours(0, 0, 0, 0);
+                            const end = new Date(endDate);
+                            end.setHours(23, 59, 59, 999);
+                            return recordDate >= start && recordDate <= end;
+                        } else if (startDate) {
+                            const start = new Date(startDate);
+                            start.setHours(0, 0, 0, 0);
+                            return recordDate >= start;
+                        } else if (endDate) {
+                            const end = new Date(endDate);
+                            end.setHours(23, 59, 59, 999);
+                            return recordDate <= end;
+                        }
+                        return true;
+                    });
+                }
+
+                // Sort records by date
+                allRecords.sort((a, b) => {
+                    const dateA = a.signInTime.toDate ? a.signInTime.toDate() : new Date(a.signInTime._seconds * 1000);
+                    const dateB = b.signInTime.toDate ? b.signInTime.toDate() : new Date(b.signInTime._seconds * 1000);
+                    return dateB - dateA;
+                });
+
+                const container = document.getElementById('employeeRecordsContainer');
+                container.innerHTML = '';
+
+                if (allRecords.length === 0) {
+                    container.innerHTML = '<div class="no-records">No records found</div>';
+                    return;
+                }
+
+                // Group records by week
+                const groupedByWeek = {};
+                allRecords.forEach(record => {
+                    try {
+                        if (!record.signInTime) return;
+
+                        const timestamp = record.signInTime.toDate ? 
+                            record.signInTime.toDate() : 
+                            new Date(record.signInTime._seconds * 1000);
+                        
+                        const dateKey = timestamp.toLocaleDateString();
+                        // Get the week start date (Sunday)
+                        const weekStart = new Date(timestamp);
+                        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                        const weekKey = weekStart.toLocaleDateString();
+
+                        if (!groupedByWeek[weekKey]) {
+                            groupedByWeek[weekKey] = {
+                                dates: {},
+                                totalWeekMinutes: 0
+                            };
+                        }
+                        if (!groupedByWeek[weekKey].dates[dateKey]) {
+                            groupedByWeek[weekKey].dates[dateKey] = [];
+                        }
+                        groupedByWeek[weekKey].dates[dateKey].push(record);
+                    } catch (error) {
+                        console.error('Error processing record:', error);
+                    }
+                });
+
+                // Display grouped records
+                const sortedWeeks = Object.keys(groupedByWeek).sort((a, b) => new Date(b) - new Date(a));
+                
+                sortedWeeks.forEach(weekKey => {
+                    const weekData = groupedByWeek[weekKey];
+                    const weekStart = new Date(weekKey);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+
+                    const weekHeader = document.createElement('div');
+                    weekHeader.className = 'week-header';
+                    weekHeader.textContent = `Week of ${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+                    container.appendChild(weekHeader);
+
+                    const sortedDates = Object.keys(weekData.dates).sort((a, b) => new Date(b) - new Date(a));
+                    
+                    sortedDates.forEach(date => {
+                        displayDayRecords(container, date, weekData.dates[date], weekData);
+                    });
+
+                    // Add weekly total
+                    const weeklyHours = Math.floor(weekData.totalWeekMinutes / 60);
+                    const weeklyMinutes = weekData.totalWeekMinutes % 60;
+                    const weeklyTotal = document.createElement('div');
+                    weeklyTotal.className = 'weekly-total';
+                    weeklyTotal.innerHTML = `Total Hours for Week: ${weeklyHours}h ${weeklyMinutes}m`;
+                    container.appendChild(weeklyTotal);
+                });
+
+            } catch (error) {
+                console.error('Error in loadEmployeeRecords:', error);
+                showError('Error loading employee records', error);
+                const container = document.getElementById('employeeRecordsContainer');
+                container.innerHTML = '<div class="no-records">Error loading records</div>';
+            }
+        }
+
+        function displayDayRecords(container, date, records, weekData) {
+            try {
+                const dateHeader = document.createElement('div');
+                dateHeader.className = 'date-header';
+                dateHeader.textContent = new Date(date).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                container.appendChild(dateHeader);
+
+                let totalDayMinutes = 0;
+                
+                records.forEach(record => {
+                    const recordDiv = document.createElement('div');
+                    recordDiv.className = 'record-details';
+                    let recordParts = [];
+
+                    // Calculate working hours for this record
+                    const workingHours = calculateWorkingHours(record);
+                    if (workingHours) {
+                        totalDayMinutes += workingHours.totalMinutes;
+                        weekData.totalWeekMinutes += workingHours.totalMinutes;
+                    }
+
+                    // Process timestamps
+                    if (record.signInTime) {
+                        const signInTime = record.signInTime.toDate ? 
+                            record.signInTime.toDate() : 
+                            new Date(record.signInTime._seconds * 1000);
+                        recordParts.push(`Initial Sign-in: ${signInTime.toLocaleTimeString()}`);
+                    }
+
+                    if (record.signOutTime) {
+                        const signOutTime = record.signOutTime.toDate ? 
+                            record.signOutTime.toDate() : 
+                            new Date(record.signOutTime._seconds * 1000);
+                        recordParts.push(`Sign-out: ${signOutTime.toLocaleTimeString()}`);
+                    }
+
+                    if (record.temporarySignOutTime) {
+                        const tempOutTime = record.temporarySignOutTime.toDate ? 
+                            record.temporarySignOutTime.toDate() : 
+                            new Date(record.temporarySignOutTime._seconds * 1000);
+                        recordParts.push(`Temporary-Out: ${tempOutTime.toLocaleTimeString()}`);
+                    }
+
+                    if (record.secondSignInTime) {
+                        const secondSignIn = record.secondSignInTime.toDate ? 
+                            record.secondSignInTime.toDate() : 
+                            new Date(record.secondSignInTime._seconds * 1000);
+                        recordParts.push(`Second Sign-in: ${secondSignIn.toLocaleTimeString()}`);
+                    }
+
+                    // Add working hours information inline
+                    if (workingHours) {
+                        const hoursText = `Hours: ${workingHours.hours}h ${workingHours.minutes}m`;
+                        recordParts.push(hoursText);
+                        
+                        if (workingHours.breakMinutes > 0) {
+                            recordParts.push(`(Break: ${Math.min(workingHours.breakMinutes, 60)}m)`);
+                        }
+                    }
+
+                    // Additional record details
+                    if (record.location) {
+                        recordParts.push(`Location: ${record.location}`);
+                    }
+                    if (record.notes) {
+                        recordParts.push(`Notes: ${record.notes}`);
+                    }
+                    if (record.comment) {
+                        recordParts.push(`Comment: ${record.comment}`);
+                    }
+
+                    recordDiv.innerHTML = recordParts.join(' | ');
+                    container.appendChild(recordDiv);
+                });
+
+                // Add daily total
+                const totalHours = Math.floor(totalDayMinutes / 60);
+                const totalMinutes = totalDayMinutes % 60;
+                const totalDiv = document.createElement('div');
+                totalDiv.className = 'record-details total-day';
+                totalDiv.innerHTML = `Total for Day: ${totalHours}h ${totalMinutes}m`;
+                container.appendChild(totalDiv);
+            } catch (error) {
+                console.error('Error displaying date:', date, error);
+                showError(`Error displaying records for date: ${date}`, error);
+            }
+        }
+
+        function filterEmployeeRecords() {
+            loadEmployeeRecords();
+        }
+
+        function clearDateFilters() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            if (currentEmployeeID) {
+                loadEmployeeRecords();
+            }
+        }
+
+        // Add new export functions for employee history
+        function exportEmployeeHistoryToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add employee info at the top
+            const employeeName = document.getElementById('employeeName').textContent;
+            const employeeID = document.getElementById('employeeIDDisplay').textContent;
+            doc.setFontSize(12);
+            doc.text(employeeName, 14, 15);
+            doc.text(employeeID, 14, 22);
+            
+            let yPos = 35;
+            const pageWidth = doc.internal.pageSize.width;
+            const margin = 14;
+            const lineHeight = 7;
+
+            // Get all date headers and their corresponding records
+            const dateHeaders = document.querySelectorAll('.date-header');
+            dateHeaders.forEach(dateHeader => {
+                // Add date as header
+                doc.setFont(undefined, 'bold');
+                doc.text(dateHeader.textContent, margin, yPos);
+                yPos += lineHeight;
+
+                // Get records for this date
+                let nextElement = dateHeader.nextElementSibling;
+                while (nextElement && nextElement.classList.contains('record-details')) {
+                    // Check if we need a new page
+                    if (yPos >= doc.internal.pageSize.height - 20) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+
+                    // Set normal font for record details
+                    doc.setFont(undefined, 'normal');
+                    
+                    // Get the record text and split it if too long
+                    const recordText = nextElement.textContent;
+                    const textWidth = doc.getStringUnitWidth(recordText) * doc.internal.getFontSize();
+                    
+                    if (textWidth > (pageWidth - 2 * margin)) {
+                        const splitText = doc.splitTextToSize(recordText, pageWidth - 2 * margin);
+                        doc.text(splitText, margin, yPos);
+                        yPos += lineHeight * splitText.length;
+                    } else {
+                        doc.text(recordText, margin, yPos);
+                        yPos += lineHeight;
+                    }
+
+                    nextElement = nextElement.nextElementSibling;
+                }
+                yPos += lineHeight; // Add space between date groups
+            });
+
+            doc.save(`employee-history-${currentEmployeeID}.pdf`);
+        }
+
+        function exportEmployeeHistoryToCSV() {
+            // Get employee info
+            const employeeName = document.getElementById('employeeName').textContent;
+            const employeeID = document.getElementById('employeeIDDisplay').textContent;
+            
+            // Prepare CSV content
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `${employeeName}\n${employeeID}\n\n`;
+            csvContent += "Date,Time Details,Location,Notes\n";
+            
+            // Get all record details
+            document.querySelectorAll('.record-details').forEach(recordDiv => {
+                const dateHeader = recordDiv.previousElementSibling;
+                const date = dateHeader ? dateHeader.textContent : '';
+                const timestamps = Array.from(recordDiv.querySelectorAll('.timestamp'))
+                    .map(p => p.textContent)
+                    .join(' | ')
+                    .replace(/,/g, ';');
+                const location = (recordDiv.querySelector('.location')?.textContent || '-').replace(/,/g, ';');
+                const notes = (recordDiv.querySelector('.notes')?.textContent || '-').replace(/,/g, ';');
+                
+                csvContent += `"${date}","${timestamps}","${location}","${notes}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `employee-history-${currentEmployeeID}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Add department/course options update function
+        function updateDepartmentOptions() {
+            const departmentFilter = document.getElementById('departmentFilter');
+            const departmentLabel = document.getElementById('departmentLabel');
+            
+            // Clear existing options
+            departmentFilter.innerHTML = '';
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            
+            // Set options based on view
+            if (currentView === 'staff') {
+                departmentLabel.textContent = 'Department:';
+                defaultOption.textContent = 'All Departments';
+                departmentFilter.appendChild(defaultOption);
+                
+                ['Academic', 'Administrative', 'Ancillary'].forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    departmentFilter.appendChild(option);
+                });
+            } else if (currentView === 'students') {
+                departmentLabel.textContent = 'Course:';
+                defaultOption.textContent = 'All Courses';
+                departmentFilter.appendChild(defaultOption);
+                
+                ['BSIT', 'BSCS', 'BSIS', 'ACT'].forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    departmentFilter.appendChild(option);
+                });
+            } else if (currentView === 'visitors') {
+                departmentLabel.textContent = 'Purpose:';
+                defaultOption.textContent = 'All Purposes';
+                departmentFilter.appendChild(defaultOption);
+                
+                ['Meeting', 'Interview', 'Delivery', 'Other'].forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    departmentFilter.appendChild(option);
+                });
+            }
+        }
+
+        // Update toggle buttons function
+        function updateToggleButtons() {
+            staffToggle.classList.toggle('active', currentView === 'staff');
+            studentsToggle.classList.toggle('active', currentView === 'students');
+            visitorsToggle.classList.toggle('active', currentView === 'visitors');
+            updateDepartmentOptions();
+            updateFilterLabels();
+            refreshRecords();
+        }
+
+        function updateFilterLabels() {
+            const nameLabel = document.querySelector('label[for="nameFilter"]');
+            const idLabel = document.querySelector('label[for="idFilter"]');
+            
+            if (currentView === 'staff') {
+                nameLabel.textContent = 'Employee Name:';
+                idLabel.textContent = 'Employee ID:';
+            } else if (currentView === 'students') {
+                nameLabel.textContent = 'Student Name:';
+                idLabel.textContent = 'Student ID:';
+            } else if (currentView === 'visitors') {
+                nameLabel.textContent = 'Visitor Name:';
+                idLabel.textContent = 'Visitor ID:';
+            }
+        }
+
+        // Initialize options and labels on page load
+        updateDepartmentOptions();
+        updateFilterLabels();
+
+        // Load records when the page loads
+        refreshRecords();
+
+        // Add toggle buttons handling
+        if (staffToggle && studentsToggle && visitorsToggle) {
+            staffToggle.addEventListener('click', () => {
+                if (currentView !== 'staff') {
+                    currentView = 'staff';
+                    updateToggleButtons();
+                }
+            });
+
+            studentsToggle.addEventListener('click', () => {
+                if (currentView !== 'students') {
+                    currentView = 'students';
+                    updateToggleButtons();
+                }
+            });
+
+            visitorsToggle.addEventListener('click', () => {
+                if (currentView !== 'visitors') {
+                    currentView = 'visitors';
+                    updateToggleButtons();
+                }
+            });
+        }
+
+        // Initialize automatic sync schedule when the page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Initialize cache first
+                await window.electronAPI.cacheManager.init();
+                console.log('Cache initialized successfully');
+
+                cleanupOldSegments();
+                const dataStatus = checkLocalDataStatus();
+                if (!dataStatus.hasAllData) {
+                    const message = [];
+                    if (dataStatus.missingCollections.length > 0) {
+                        message.push(`Missing collections: ${dataStatus.missingCollections.join(', ')}`);
+                    }
+                    for (const [collection, segments] of Object.entries(dataStatus.missingSegments)) {
+                        message.push(`Missing segments for ${collection}: ${segments.join(', ')}`);
+                    }
+                    showError(message.join('\n'), null);
+                    await performSync();
+                }
+                
+                initializeSync();
+                displayLastSyncTime();
+                refreshRecords();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError('Failed to initialize application: ' + error.message);
+            }
+        });
+
+        function initializeSync() {
+            // Check if we need to sync on load
+            checkAndPerformSync();
+            
+            // Set up the daily sync at 11 AM
+            setInterval(() => {
+                const now = new Date();
+                if (now.getHours() === 11 && now.getMinutes() === 0) {
+                    performSync();
+                }
+            }, 60000); // Check every minute
+        }
+
+        function checkAndPerformSync() {
+            const lastSync = localStorage.getItem('lastSyncTime');
+            if (!lastSync) {
+                performSync();
+                return;
+            }
+
+            const lastSyncDate = new Date(lastSync);
+            const now = new Date();
+            
+            // If last sync was more than 24 hours ago or was before 11 AM today and it's past 11 AM now
+            if ((now - lastSyncDate) > 86400000 || 
+                (lastSyncDate.getDate() !== now.getDate() && now.getHours() >= 11)) {
+                performSync();
+            }
+        }
+
+        async function manualSync() {
+            if (syncInProgress) {
+                showSyncStatus('Sync already in progress', 'progress');
+                return;
+            }
+            await performSync();
+        }
+
+        async function performSync() {
+            if (syncInProgress) {
+                showSyncStatus('Sync already in progress', 'progress');
+                return;
+            }
+
+            const syncButton = document.querySelector('.sync-button');
+            
+            try {
+                syncInProgress = true;
+                syncButton.classList.add('syncing');
+                showSyncModal();
+                updateSyncProgress(0);
+                showSyncStatus('Starting synchronization...', 'progress');
+
+                const collections = ['Employee_logs', 'signin_logs', 'visitors'];
+                const segments = {
+                    current: getCurrentSegmentKey(),
+                    previous: getPreviousSegmentKey()
+                };
+
+                let totalOperations = collections.length * 2; // 2 segments per collection
+                let completedOperations = 0;
+
+                for (const collection of collections) {
+                    showSyncStatus(`Syncing ${collection}...`, 'progress');
+                    
+                    try {
+                        // Get existing metadata once per collection
+                        const existingMetadataStr = localStorage.getItem(`${collection}_metadata`);
+                        const existingMetadata = existingMetadataStr ? JSON.parse(existingMetadataStr) : { segments: [] };
+                        
+                        // Process both segments
+                        for (const [segmentType, segmentKey] of Object.entries(segments)) {
+                            const range = getSegmentRange(segmentKey);
+                            
+                            const result = await window.electronAPI.getCollectionDataForDateRange(
+                                collection,
+                                range.start,
+                                range.end
+                            );
+
+                            if (!result.success) {
+                                throw new Error(`Failed to sync ${collection} ${segmentType} segment`);
+                            }
+
+                            // Store segment data
+                            localStorage.setItem(
+                                `${collection}_${segmentKey}`,
+                                JSON.stringify(result.data)
+                            );
+
+                            completedOperations++;
+                            updateSyncProgress((completedOperations / totalOperations) * 100);
+                            
+                            updateDebugInfo(`Synced ${collection} ${segmentType}`, {
+                                range,
+                                recordCount: result.data.length
+                            });
+                        }
+
+                        // Update metadata after both segments are synced
+                        const updatedSegments = [...new Set([
+                            ...existingMetadata.segments,
+                            segments.current,
+                            segments.previous
+                        ])];
+
+                        const metadata = {
+                            lastSync: new Date().toISOString(),
+                            segments: updatedSegments
+                        };
+                        localStorage.setItem(`${collection}_metadata`, JSON.stringify(metadata));
+
+                    } catch (error) {
+                        console.error(`Error syncing ${collection}:`, error);
+                        showSyncStatus(`Error syncing ${collection}: ${error.message}`, 'error');
+                        throw error;
+                    }
+                }
+
+                // Update last sync time
+                const now = new Date().toISOString();
+                localStorage.setItem('lastSyncTime', now);
+                lastSyncTime = now;
+                displayLastSyncTime();
+                
+                showSyncStatus('Synchronization completed successfully', 'success');
+                await refreshRecords();
+
+                // Close modal after a delay only if sync was successful
+                setTimeout(closeSyncModal, 2000);
+
+            } catch (error) {
+                console.error('Sync error:', error);
+                showSyncStatus('Synchronization failed: ' + error.message, 'error');
+                // Keep modal open on error so user can see the error message
+            } finally {
+                syncInProgress = false;
+                syncButton.classList.remove('syncing');
+            }
+        }
+
+        function updateSyncProgress(percentage) {
+            const progressBar = document.getElementById('syncProgressBar');
+            if (progressBar) {
+                // Ensure percentage is between 0 and 100
+                const boundedPercentage = Math.min(Math.max(percentage, 0), 100);
+                progressBar.style.width = `${boundedPercentage}%`;
+                // Add transition for smooth progress
+                progressBar.style.transition = 'width 0.3s ease-in-out';
+            }
+        }
+
+        function showSyncModal() {
+            const modal = document.getElementById('syncModal');
+            if (modal) {
+                modal.style.display = 'block';
+                // Reset progress bar when showing modal
+                updateSyncProgress(0);
+            }
+        }
+
+        function closeSyncModal() {
+            const modal = document.getElementById('syncModal');
+            if (modal) {
+                // Add fade-out effect
+                modal.style.opacity = '0';
+                modal.style.transition = 'opacity 0.3s ease-in-out';
+                
+                // Actually hide the modal after transition
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    modal.style.opacity = '1';
+                }, 300);
+            }
+        }
+
+        function showSyncStatus(message, type) {
+            const statusDiv = document.getElementById('syncStatus');
+            if (statusDiv) {
+                statusDiv.textContent = message;
+                statusDiv.className = `sync-status ${type}`;
+                
+                // Log to debug info for tracking
+                updateDebugInfo('Sync Status Update', {
+                    message,
+                    type,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
+        function displayLastSyncTime() {
+            const lastSyncTime = localStorage.getItem('lastSyncTime');
+            const lastSyncTimeDisplay = document.getElementById('lastSyncTime');
+            if (lastSyncTime) {
+                const lastSyncDate = new Date(lastSyncTime);
+                const now = new Date();
+                const diff = now - lastSyncDate;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor(diff / (1000 * 60) % 60);
+                const formattedTime = `Last sync: ${hours}h ${minutes}m ago`;
+                lastSyncTimeDisplay.textContent = formattedTime;
+            } else {
+                lastSyncTimeDisplay.textContent = 'No sync history';
+            }
+        }
+
+        // Functions for handling segmented data storage
+        function getSegmentKey(date) {
+            const month = date.getMonth();
+            const year = date.getFullYear();
+            // Create segment for two-month periods (Jan-Feb, Mar-Apr, etc.)
+            const segmentNumber = Math.floor(month / 2);
+            return `${year}_${segmentNumber}`;
+        }
+
+        function getCurrentSegmentKey() {
+            return getSegmentKey(new Date());
+        }
+
+        function getPreviousSegmentKey() {
+            const date = new Date();
+            date.setMonth(date.getMonth() - 2);
+            return getSegmentKey(date);
+        }
+
+        function getSegmentRange(segmentKey) {
+            const [year, segment] = segmentKey.split('_').map(Number);
+            const startMonth = segment * 2;
+            const endMonth = startMonth + 1;
+            return {
+                start: new Date(year, startMonth, 1),
+                end: new Date(year, endMonth + 1, 0) // Last day of end month
+            };
+        }
+
+        function checkLocalDataStatus() {
+            const collections = ['Employee_logs', 'signin_logs', 'visitors'];
+            const currentSegment = getCurrentSegmentKey();
+            const previousSegment = getPreviousSegmentKey();
+            
+            const status = {
+                hasAllData: true,
+                missingCollections: [],
+                missingSegments: {}
+            };
+
+            collections.forEach(collection => {
+                const metadata = localStorage.getItem(`${collection}_metadata`);
+                if (!metadata) {
+                    status.hasAllData = false;
+                    status.missingCollections.push(collection);
+                    return;
+                }
+
+                const segments = [currentSegment, previousSegment];
+                const missingSegments = segments.filter(segment => 
+                    !localStorage.getItem(`${collection}_${segment}`)
+                );
+
+                if (missingSegments.length > 0) {
+                    status.hasAllData = false;
+                    status.missingSegments[collection] = missingSegments;
+                }
+            });
+
+            return status;
+        }
+
+        function cleanupOldSegments() {
+            const collections = ['Employee_logs', 'signin_logs', 'visitors'];
+            const currentSegment = getCurrentSegmentKey();
+            const previousSegment = getPreviousSegmentKey();
+            const validSegments = [currentSegment, previousSegment];
+
+            collections.forEach(collection => {
+                const metadata = localStorage.getItem(`${collection}_metadata`);
+                if (metadata) {
+                    const data = JSON.parse(metadata);
+                    // Keep segments from the last 6 months
+                    const oldestValidDate = new Date();
+                    oldestValidDate.setMonth(oldestValidDate.getMonth() - 6);
+
+                    const validOldSegments = data.segments.filter(segment => {
+                        if (validSegments.includes(segment)) return true;
+                        const [year, segmentNum] = segment.split('_').map(Number);
+                        const segmentDate = new Date(year, segmentNum * 2, 1);
+                        return segmentDate >= oldestValidDate;
+                    });
+
+                    // Update metadata with valid segments
+                    localStorage.setItem(`${collection}_metadata`, JSON.stringify({
+                        lastSync: data.lastSync,
+                        segments: validOldSegments
+                    }));
+
+                    // Remove invalid segments from storage
+                    data.segments.forEach(segment => {
+                        if (!validOldSegments.includes(segment)) {
+                            localStorage.removeItem(`${collection}_${segment}`);
+                        }
+                    });
+                }
+            });
+        }
+
+        function clearLocalData() {
+            const collections = ['Employee_logs', 'signin_logs', 'visitors'];
+            collections.forEach(collection => {
+                // Clear metadata
+                localStorage.removeItem(`${collection}_metadata`);
+                
+                // Clear all possible segments for the past year
+                const now = new Date();
+                const year = now.getFullYear();
+                for (let y = year - 1; y <= year; y++) {
+                    for (let s = 0; s < 6; s++) {
+                        localStorage.removeItem(`${collection}_${y}_${s}`);
+                    }
+                }
+            });
+            localStorage.removeItem('lastSyncTime');
+            lastSyncTime = null;
+            displayLastSyncTime();
+        }
+    </script>
+</body>
+</html>

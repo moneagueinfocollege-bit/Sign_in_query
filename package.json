@@ -1,0 +1,91 @@
+{
+  "name": "moneague-signin-query",
+  "version": "1.0.0",
+  "description": "Moneague Sign-In Query and Management System",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moneagueinfocollege-bit/Sign_in_query.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.moneague.signin",
+    "productName": "Moneague Sign-In Query and Management",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "publish": {
+      "provider": "github",
+      "owner": "moneagueinfocollege-bit",
+      "repo": "Sign_in_query"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Moneague Sign-In Query",
+      "installerIcon": "Logo.png",
+      "uninstallerIcon": "Logo.png"
+    },
+    "portable": {
+      "unicode": false,
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "./",
+        "filter": [
+          "**/*",
+          "!node_modules/**/*",
+          "!release/**/*"
+        ]
+      }
+    ]
+  },
+  "keywords": [
+    "sign-in",
+    "management",
+    "moneague"
+  ],
+  "author": "Moneague College",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "electron-updater": "^6.7.3",
+    "firebase-admin": "^11.10.1",
+    "googleapis": "^105.0.0",
+    "jspdf": "^3.0.0",
+    "jspdf-autotable": "^5.0.2",
+    "localforage": "^1.10.0",
+    "pako": "^2.1.0",
+    "workbox-webpack-plugin": "^7.3.0"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.6.0",
+    "electron-reload": "^1.5.0"
+  }
+}

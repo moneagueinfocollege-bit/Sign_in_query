@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visitor Sign-In Records</title>
+    <script src="node_modules/jspdf/dist/jspdf.umd.min.js"></script>
+    <script src="node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .records-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .records-table th, .records-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .records-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .records-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .no-records {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .primary-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #0056b3;
+        }
+        .secondary-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .secondary-button:hover {
+            background-color: #545b62;
+        }
+        .export-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .export-button:hover {
+            background-color: #218838;
+        }
+        .filters-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .filter-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .search-button:hover {
+            background-color: #0056b3;
+        }
+        .clear-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .clear-button:hover {
+            background-color: #c82333;
+        }
+        .visitor-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+        }
+        .photo-cell {
+            width: 60px;
+            text-align: center;
+        }
+        .purpose-cell {
+            max-width: 200px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        .time-cell {
+            white-space: nowrap;
+        }
+        .photo-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        .photo-modal-content {
+            margin: auto;
+            display: block;
+            max-width: 80%;
+            max-height: 80vh;
+            margin-top: 50px;
+        }
+        .photo-modal img {
+            width: 100%;
+            height: auto;
+        }
+        .close-photo {
+            position: absolute;
+            right: 25px;
+            top: 15px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .photo-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .photo-link:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visitor Sign-In Records</h1>
+
+        <div class="filters-section">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="nameFilter">Visitor Name:</label>
+                    <input type="text" id="nameFilter" placeholder="Search by name">
+                </div>
+                <div class="filter-group">
+                    <label for="dateFilter">Date:</label>
+                    <input type="date" id="dateFilter">
+                </div>
+            </div>
+            <div class="button-container">
+                <button class="search-button" onclick="applyFilters()">Search</button>
+                <button class="clear-button" onclick="clearFilters()">Clear Filters</button>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button class="secondary-button" onclick="window.location.href='view-records.html'">Back to All Records</button>
+            <button class="primary-button" onclick="refreshRecords()">Refresh Records</button>
+            <button class="export-button" onclick="exportToPDF()">Export to PDF</button>
+            <button class="export-button" onclick="exportToCSV()">Export to CSV</button>
+        </div>
+
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Name</th>
+                    <th>Photo</th>
+                    <th>Purpose of Visit</th>
+                    <th>Expected Time</th>
+                </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add Photo Modal -->
+    <div id="photoModal" class="photo-modal">
+        <span class="close-photo" onclick="closePhotoModal()">&times;</span>
+        <div class="photo-modal-content">
+            <img id="modalPhoto" src="" alt="Visitor Photo">
+        </div>
+    </div>
+
+    <script>
+        const { getVisitorRecords } = window.electronAPI;
+        let currentRecords = [];
+
+        // Add photo modal functions
+        const photoModal = document.getElementById('photoModal');
+        const modalPhoto = document.getElementById('modalPhoto');
+
+        function showPhoto(photoUrl) {
+            modalPhoto.src = photoUrl;
+            photoModal.style.display = 'block';
+        }
+
+        function closePhotoModal() {
+            photoModal.style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target === photoModal) {
+                closePhotoModal();
+            }
+        }
+
+        async function applyFilters() {
+            try {
+                const nameFilter = document.getElementById('nameFilter').value.trim();
+                const dateFilter = document.getElementById('dateFilter').value;
+
+                const filters = {};
+                if (nameFilter) filters.name = nameFilter;
+
+                // Handle date filter
+                if (dateFilter) {
+                    const selectedDate = new Date(dateFilter);
+                    const nextDay = new Date(dateFilter);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    filters.startDate = selectedDate;
+                    filters.endDate = nextDay;
+                }
+
+                await refreshRecords(filters);
+            } catch (error) {
+                console.error('Error applying filters:', error);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('nameFilter').value = '';
+            document.getElementById('dateFilter').value = '';
+            refreshRecords();
+        }
+
+        async function refreshRecords(filters = {}) {
+            try {
+                const tableBody = document.getElementById('recordsTableBody');
+                const result = await getVisitorRecords(filters);
+                
+                if (result.success) {
+                    currentRecords = result.records;
+                    tableBody.innerHTML = '';
+                    
+                    if (result.records.length === 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="5" class="no-records">No visitor records found</td>';
+                        tableBody.appendChild(row);
+                    } else {
+                        result.records.forEach(record => {
+                            const row = document.createElement('tr');
+                            
+                            // Handle signInTime
+                            let signInTimeStr = '-';
+                            if (record.signInTime) {
+                                const timestamp = record.signInTime.toDate ? 
+                                    record.signInTime.toDate() : 
+                                    record.signInTime._seconds ? 
+                                        new Date(record.signInTime._seconds * 1000) :
+                                        new Date(record.signInTime);
+                                signInTimeStr = timestamp.toLocaleString();
+                            }
+                            
+                            // Handle expectedTime
+                            let expectedTimeStr = '-';
+                            if (record.expectedTime) {
+                                try {
+                                    const expectedTime = record.expectedTime.toDate ? 
+                                        record.expectedTime.toDate() : 
+                                        record.expectedTime._seconds ? 
+                                            new Date(record.expectedTime._seconds * 1000) :
+                                            new Date(record.expectedTime);
+                                    expectedTimeStr = expectedTime.toLocaleString();
+                                } catch (error) {
+                                    console.warn('Error formatting expected time:', error);
+                                    expectedTimeStr = record.expectedTime.toString();
+                                }
+                            }
+                            
+                            row.innerHTML = `
+                                <td class="time-cell">${signInTimeStr}</td>
+                                <td>${record.name || '-'}</td>
+                                <td class="photo-cell">
+                                    ${record.photo ? 
+                                        `<a href="${record.photo}" target="_blank" class="photo-link">Click</a>` : 
+                                        '-'}
+                                </td>
+                                <td class="purpose-cell">${record.purpose || '-'}</td>
+                                <td class="time-cell">${expectedTimeStr}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    }
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('Error refreshing records:', error);
+                tableBody.innerHTML = '<tr><td colspan="5" class="no-records">Error loading records</td></tr>';
+            }
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const tableData = currentRecords.map(record => {
+                // Handle signInTime
+                let signInTimeStr = '-';
+                if (record.signInTime) {
+                    const timestamp = record.signInTime.toDate ? 
+                        record.signInTime.toDate() : 
+                        record.signInTime._seconds ? 
+                            new Date(record.signInTime._seconds * 1000) :
+                            new Date(record.signInTime);
+                    signInTimeStr = timestamp.toLocaleString();
+                }
+
+                // Handle expectedTime
+                let expectedTimeStr = '-';
+                if (record.expectedTime) {
+                    try {
+                        const expectedTime = record.expectedTime.toDate ? 
+                            record.expectedTime.toDate() : 
+                            record.expectedTime._seconds ? 
+                                new Date(record.expectedTime._seconds * 1000) :
+                                new Date(record.expectedTime);
+                        expectedTimeStr = expectedTime.toLocaleString();
+                    } catch (error) {
+                        console.warn('Error formatting expected time:', error);
+                        expectedTimeStr = record.expectedTime.toString();
+                    }
+                }
+
+                return [
+                    signInTimeStr,
+                    record.name || '-',
+                    record.purpose || '-',
+                    expectedTimeStr
+                ];
+            });
+
+            doc.autoTable({
+                head: [['Date & Time', 'Name', 'Purpose of Visit', 'Expected Time']],
+                body: tableData,
+            });
+
+            doc.save('visitor-records.pdf');
+        }
+
+        function exportToCSV() {
+            const rows = [
+                ['Date & Time', 'Name', 'Purpose of Visit', 'Expected Time'],
+                ...currentRecords.map(record => {
+                    // Handle signInTime
+                    let signInTimeStr = '-';
+                    if (record.signInTime) {
+                        const timestamp = record.signInTime.toDate ? 
+                            record.signInTime.toDate() : 
+                            record.signInTime._seconds ? 
+                                new Date(record.signInTime._seconds * 1000) :
+                                new Date(record.signInTime);
+                        signInTimeStr = timestamp.toLocaleString();
+                    }
+
+                    // Handle expectedTime
+                    let expectedTimeStr = '-';
+                    if (record.expectedTime) {
+                        try {
+                            const expectedTime = record.expectedTime.toDate ? 
+                                record.expectedTime.toDate() : 
+                                record.expectedTime._seconds ? 
+                                    new Date(record.expectedTime._seconds * 1000) :
+                                    new Date(record.expectedTime);
+                            expectedTimeStr = expectedTime.toLocaleString();
+                        } catch (error) {
+                            console.warn('Error formatting expected time:', error);
+                            expectedTimeStr = record.expectedTime.toString();
+                        }
+                    }
+
+                    return [
+                        signInTimeStr,
+                        record.name || '-',
+                        record.purpose || '-',
+                        expectedTimeStr
+                    ];
+                })
+            ];
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            rows.forEach(row => {
+                csvContent += row.join(',') + '\r\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', 'visitor-records.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Load visitor records when the page loads
+        refreshRecords();
+    </script>
+</body>
+</html> 

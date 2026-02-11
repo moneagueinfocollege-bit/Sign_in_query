@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Sign-In Record</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .primary-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #0056b3;
+        }
+        .secondary-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .secondary-button:hover {
+            background-color: #545b62;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        .success-message {
+            color: #28a745;
+            margin-top: 10px;
+        }
+        .photo-upload-container {
+            margin-bottom: 20px;
+        }
+        .photo-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .photo-upload-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+        .photo-upload-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .photo-upload-info ul {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+        .photo-upload-info li {
+            margin-bottom: 3px;
+            color: #666;
+        }
+        .photo-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: none;
+            border: 2px solid #ddd;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Add Sign-In Record</h1>
+        <div class="form-section">
+            <div class="input-group">
+                <input type="text" id="nameInput" placeholder="Enter name">
+            </div>
+            <div class="input-group">
+                <input type="text" id="employeeIDInput" placeholder="Enter ID Number">
+            </div>
+            <div class="input-group">
+                <input type="text" id="qrIdentifierInput" placeholder="Enter QR Identifier">
+            </div>
+            <div class="input-group">
+                <select id="departmentInput" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                    <option value="">Select Department</option>
+                    <option value="Academic">Academic</option>
+                    <option value="Administrative">Administrative</option>
+                    <option value="Students">Students</option>
+                    <option value="Ancillary">Ancillary</option>
+                    <option value="Visitors">Visitors</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <input type="url" id="profilePhotoInput" placeholder="Enter Profile Photo Link" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+            </div>
+            <div class="button-group">
+                <button class="secondary-button" onclick="window.location.href='index.html'">Back to Menu</button>
+                <button class="primary-button" onclick="addRecord()">Add Record</button>
+            </div>
+            <div id="addStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        // Remove direct requires and use window.electronAPI
+        const { addSignInRecord, getIdentifier } = window.electronAPI;
+
+        async function addRecord() {
+            const employeeIDInput = document.getElementById('employeeIDInput');
+            const nameInput = document.getElementById('nameInput');
+            const departmentInput = document.getElementById('departmentInput');
+            const qrIdentifierInput = document.getElementById('qrIdentifierInput');
+            const profilePhotoInput = document.getElementById('profilePhotoInput');
+            const addStatus = document.getElementById('addStatus');
+            
+            try {
+                // Validate required fields
+                if (!qrIdentifierInput.value.trim()) {
+                    addStatus.textContent = 'Please enter a QR Identifier';
+                    addStatus.className = 'error-message';
+                    return;
+                }
+
+                if (!employeeIDInput.value.trim()) {
+                    addStatus.textContent = 'Please enter an ID Number';
+                    addStatus.className = 'error-message';
+                    return;
+                }
+
+                if (!nameInput.value.trim()) {
+                    addStatus.textContent = 'Please enter a name';
+                    addStatus.className = 'error-message';
+                    return;
+                }
+
+                if (!departmentInput.value.trim()) {
+                    addStatus.textContent = 'Please select a department';
+                    addStatus.className = 'error-message';
+                    return;
+                }
+
+                // Validate URL format if provided
+                const photoUrl = profilePhotoInput.value.trim();
+                if (photoUrl && !isValidUrl(photoUrl)) {
+                    addStatus.textContent = 'Please enter a valid URL for the Profile Photo Link';
+                    addStatus.className = 'error-message';
+                    return;
+                }
+
+                // Add record to database
+                addStatus.textContent = 'Saving record...';
+                addStatus.className = 'info-message';
+                
+                const result = await window.electronAPI.addSignInRecord(
+                    nameInput.value.trim(),
+                    undefined,
+                    employeeIDInput.value.trim(),
+                    departmentInput.value.trim(),
+                    photoUrl,
+                    qrIdentifierInput.value.trim()
+                );
+                
+                if (result.success) {
+                    addStatus.textContent = 'Record added successfully';
+                    addStatus.className = 'success-message';
+                    // Clear form
+                    employeeIDInput.value = '';
+                    nameInput.value = '';
+                    departmentInput.value = '';
+                    qrIdentifierInput.value = '';
+                    profilePhotoInput.value = '';
+                } else {
+                    addStatus.textContent = result.error || 'Error adding record';
+                    addStatus.className = 'error-message';
+                }
+            } catch (error) {
+                console.error('Error in addRecord:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+                addStatus.textContent = 'An error occurred while saving the record';
+                addStatus.className = 'error-message';
+            }
+        }
+
+        // Helper function to validate URL
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        // Add event listener for QR Identifier input to auto-fill other fields
+        document.getElementById('qrIdentifierInput').addEventListener('blur', async function() {
+            const qrIdentifier = this.value.trim();
+            if (qrIdentifier) {
+                const result = await getIdentifier(qrIdentifier);
+                if (result.success) {
+                    document.getElementById('nameInput').value = result.data.Name;
+                    document.getElementById('departmentInput').value = result.data.Department;
+                    document.getElementById('employeeIDInput').value = result.data.IdNumber;
+                    if (result.data.ProfilePhotoId) {
+                        document.getElementById('profilePhotoInput').value = result.data.ProfilePhotoId;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
